@@ -24,6 +24,9 @@ import re
 # you may use urllib to encode data appropriately
 from urllib.parse import urlparse
 
+DEFAULT_PORTS = {"http": 80, "https": 443}
+DEFAULT_PATH = "/"
+
 def help():
     print("httpclient.py [GET/POST] [URL]\n")
 
@@ -69,21 +72,16 @@ class HTTPClient(object):
         return buffer.decode('utf-8')
 
     def GET(self, url, args=None):
-        DEFAULT_PORTS = {"http": 80, "https": 443}
         parsedUrl = urlparse(url)
 
         scheme, host, port, path = parsedUrl.scheme, parsedUrl.hostname, parsedUrl.port, parsedUrl.path
-        path = path if path else '/'
+        path = path if path else DEFAULT_PATH
         port = port if port else DEFAULT_PORTS[scheme]
-        print("URL->", url, "ARGS->", args, "PORT", port)
-        print("DATA->", f"GET {path} HTTP/1.1\r\nHost: {host}\r\n\r\n")
 
         self.connect(host, port)
         self.sendall(f"GET {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n")
 
-        self.socket.shutdown(socket.SHUT_WR)
         response = self.recvall(self.socket)
-        print("RESPONSE", response)
         code = self.get_code(response)
         body = self.get_body(response)
 
@@ -91,11 +89,11 @@ class HTTPClient(object):
         return HTTPResponse(code, body)
 
     def POST(self, url, args=None):
-        DEFAULT_PORTS = {"http": 80, "https": 443}
-        CONTENT_TYPE = "application/x-www-form-urlencoded"
+        contentType = "application/x-www-form-urlencoded"
         parsedUrl = urlparse(url)
 
         scheme, host, port, path = parsedUrl.scheme, parsedUrl.hostname, parsedUrl.port, parsedUrl.path
+        path = path if path else DEFAULT_PATH
         port = port if port else DEFAULT_PORTS[scheme]
         body = [] if args else ""
         if args:
@@ -104,7 +102,7 @@ class HTTPClient(object):
             body = "&".join(body)
 
         self.connect(host, port)
-        self.sendall(f"POST {path} HTTP/1.1\r\nHost: {host}\r\nContent-Type: {CONTENT_TYPE}\r\nContent-Length: {len(body)}\r\n\r\n{body}")
+        self.sendall(f"POST {path} HTTP/1.1\r\nHost: {host}\r\nContent-Type: {contentType}\r\nContent-Length: {len(body)}\r\n\r\n{body}")
 
         self.socket.shutdown(socket.SHUT_WR)
         response = self.recvall(self.socket)
